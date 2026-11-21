@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的專屬音樂盒</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #121212;
+      color: #ffffff;
+      text-align: center;
+      padding: 25px 15px;
+      margin: 0;
+    }
+    h2 { font-size: 19px; margin-bottom: 18px; }
+    .controls { display: flex; justify-content: center; gap: 12px; margin-bottom: 20px; }
+    .btn {
+      background-color: #1DB954;
+      color: white;
+      border: none;
+      padding: 13px 24px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 50px;
+      cursor: pointer;
+    }
+    .btn-shuffle { background-color: #333333; }
+    .btn:active { transform: scale(0.96); }
+    audio { width: 100%; max-width: 420px; margin-bottom: 20px; }
+    ul {
+      list-style: none;
+      padding: 0;
+      max-width: 420px;
+      margin: 0 auto;
+      text-align: left;
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+    li {
+      padding: 12px 15px;
+      border-bottom: 1px solid #242424;
+      cursor: pointer;
+      border-radius: 6px;
+      font-size: 15px;
+    }
+    li.playing { background-color: #282828; color: #1DB954; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <h2 id="nowPlaying">點擊按鈕開始播放音樂</h2>
+  
+  <div class="controls">
+    <button class="btn" onclick="playTrack(0)">▶ 順序播放</button>
+    <button class="btn btn-shuffle" onclick="playRandom()">🔀 隨機播放</button>
+  </div>
+
+  <audio id="audioPlayer" controls playsinline></audio>
+  <ul id="songList"></ul>
+
+  <script>
+    // ==========================================
+    // 【唯一要改的地方】把 150 改成你倉庫裡的歌曲總數
+    // （程式會自動讀取同一個倉庫裡的 1.mp3 到 150.mp3）
+    // ==========================================
+    const totalSongs = 14; 
+    // ==========================================
+
+    const playlist = [];
+    for (let num = 1; num <= totalSongs; num++) {
+      playlist.push({
+        name: `曲目 #${num}`,
+        file: `${num}.mp3`
+      });
+    }
+
+    let currentIndex = 0;
+    const player = document.getElementById("audioPlayer");
+    const nowPlaying = document.getElementById("nowPlaying");
+    const songList = document.getElementById("songList");
+
+    // 自動生成歌單列表
+    playlist.forEach((song, index) => {
+      const li = document.createElement("li");
+      li.textContent = song.name;
+      li.onclick = () => playTrack(index);
+      songList.appendChild(li);
+    });
+
+    function playTrack(index) {
+      currentIndex = index;
+      player.src = playlist[currentIndex].file;
+      nowPlaying.textContent = `正在播放：${playlist[currentIndex].name} (共 ${playlist.length} 首)`;
+      
+      const items = songList.getElementsByTagName("li");
+      for (let i = 0; i < items.length; i++) {
+        items[i].classList.toggle("playing", i === index);
+      }
+      items[index].scrollIntoView({ behavior: "smooth", block: "nearest" });
+      player.play();
+    }
+
+    function playRandom() {
+      const randomIndex = Math.floor(Math.random() * playlist.length);
+      playTrack(randomIndex);
+    }
+
+    // 播完一首自動接下一首，全部播完自動從頭循環
+    player.addEventListener("ended", () => {
+      if (currentIndex + 1 < playlist.length) {
+        playTrack(currentIndex + 1);
+      } else {
+        playTrack(0);
+      }
+    });
+  </script>
+
+</body>
+</html>
