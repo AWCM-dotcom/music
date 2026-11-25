@@ -13,7 +13,8 @@
       padding: 25px 15px;
       margin: 0;
     }
-    h2 { font-size: 19px; margin-bottom: 18px; }
+    h2 { font-size: 19px; margin-bottom: 10px; }
+    #errorMsg { color: #ff5555; font-size: 14px; margin-bottom: 15px; font-weight: bold; }
     .controls { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
     .btn {
       background-color: #333333;
@@ -26,28 +27,22 @@
       cursor: pointer;
     }
     .btn.active { background-color: #1DB954; color: #ffffff; }
-    .btn:active { transform: scale(0.96); }
-    
-    /* 播放器樣式：播 MP3 時維持精簡高度，播 MP4 時自動展開畫面 */
     video { 
       width: 100%; 
       max-width: 420px; 
       margin-bottom: 20px; 
       border-radius: 10px;
       background-color: #000;
-      height: 54px; /* 預設高度（適合 MP3） */
+      height: 54px;
     }
-    video.is-video {
-      height: auto; /* 播 MP4 時自動顯示完整影片比例 */
-    }
-
+    video.is-video { height: auto; min-height: 200px; }
     ul {
       list-style: none;
       padding: 0;
       max-width: 420px;
       margin: 0 auto;
       text-align: left;
-      max-height: 55vh;
+      max-height: 50vh;
       overflow-y: auto;
     }
     li {
@@ -63,6 +58,7 @@
 <body>
 
   <h2 id="nowPlaying">點擊按鈕開始播放</h2>
+  <div id="errorMsg"></div>
   
   <div class="controls">
     <button id="btnOrder" class="btn active" onclick="startOrder()">▶ 順序播放</button>
@@ -70,52 +66,33 @@
     <button id="btnRepeat" class="btn" onclick="toggleRepeat()">🔂 單曲重複：關</button>
   </div>
 
-  <!-- 改用 video 標籤，同時支援 MP3 音樂與 MP4 影片 -->
-  <video id="mediaPlayer" controls playsinline></video>
+  <video id="mediaPlayer" controls playsinline webkit-playsinline></video>
   <ul id="songList"></ul>
 
   <script>
-    // ==========================================
-    // 【設定區】請修改這裡的數字
-    // 1. totalSongs：倉庫裡的 MP3 總數（會自動讀取 1.mp3 ~ 14.mp3）
-    // 2. totalVideos：倉庫裡的 MP4 總數（會自動讀取 1.mp4 ~ 1.mp4）
-    // ==========================================
-    const totalSongs = 14;  // <-- 改成你的 MP3 數量（例如 14 或 18）
-    const totalVideos = 4;  // <-- 改成你的 MP4 數量（例如 1）
-    // ==========================================
+    const totalSongs = 14;  // MP3 數量
+    const totalVideos = 1;  // MP4 數量
 
     const playlist = [];
-    
-    // 加入 MP3 歌曲
     for (let num = 1; num <= totalSongs; num++) {
-      playlist.push({
-        name: `🎵 曲目 #${num}`,
-        file: `${num}.mp3`,
-        type: 'audio'
-      });
+      playlist.push({ name: `🎵 曲目 #${num}`, file: `${num}.mp3`, type: 'audio' });
     }
-
-    // 加入 MP4 影片
     for (let num = 1; num <= totalVideos; num++) {
-      playlist.push({
-        name: `🎬 影片 #${num}`,
-        file: `${num}.mp4`,
-        type: 'video'
-      });
+      playlist.push({ name: `🎬 影片 #${num}`, file: `${num}.mp4`, type: 'video' });
     }
 
     let currentIndex = 0;
-    let isRandom = false; // 是否為隨機模式
-    let isRepeat = false; // 是否為單曲重複模式
+    let isRandom = false;
+    let isRepeat = false;
 
     const player = document.getElementById("mediaPlayer");
     const nowPlaying = document.getElementById("nowPlaying");
+    const errorMsg = document.getElementById("errorMsg");
     const songList = document.getElementById("songList");
     const btnOrder = document.getElementById("btnOrder");
     const btnRandom = document.getElementById("btnRandom");
     const btnRepeat = document.getElementById("btnRepeat");
 
-    // 自動生成歌單列表
     playlist.forEach((item, index) => {
       const li = document.createElement("li");
       li.textContent = item.name;
@@ -126,8 +103,8 @@
     function playTrack(index) {
       currentIndex = index;
       const currentItem = playlist[currentIndex];
+      errorMsg.textContent = ""; // 清除舊錯誤
       
-      // 根據是 MP3 還是 MP4，自動切換播放器高度
       if (currentItem.type === 'video') {
         player.classList.add('is-video');
       } else {
@@ -135,17 +112,29 @@
       }
 
       player.src = currentItem.file;
-      nowPlaying.textContent = `正在播放：${currentItem.name} (共 ${playlist.length} 首)`;
+      nowPlaying.textContent = `正在播放：${currentItem.name}`;
       
       const items = songList.getElementsByTagName("li");
       for (let i = 0; i < items.length; i++) {
         items[i].classList.toggle("playing", i === index);
       }
-      items[index].scrollIntoView({ behavior: "smooth", block: "nearest" });
-      player.play();
+      
+      player.play().catch(err => {
+        errorMsg.textContent = `播放失敗原因：${err.message}`;
+      });
     }
 
-    // 點擊「順序播放」
+    // 偵測檔案找不到或格式不支援的錯誤
+    player.addEventListener("error", () => {
+      const errCode = player.error ? player.error.code : "未知";
+      let reason = "";
+      if (errCode === 4) reason = "找不到檔案 (檔名不是 1.mp4) 或影片編碼不支援";
+      else if (errCode === 3) reason = "影片解碼失敗 (格式不相容)";
+      else if (errCode === 2) reason = "網路連線中斷";
+      else reason = "未知錯誤";
+      errorMsg.textContent = `⚠️ 錯誤代碼 ${errCode}：${reason}`;
+    });
+
     function startOrder() {
       isRandom = false;
       btnOrder.classList.add("active");
@@ -153,7 +142,6 @@
       playTrack(0);
     }
 
-    // 點擊「隨機播放」
     function startRandom() {
       isRandom = true;
       btnRandom.classList.add("active");
@@ -161,7 +149,6 @@
       playNextRandom();
     }
 
-    // 隨機挑選下一首（避免連續兩次播同一首）
     function playNextRandom() {
       let randomIndex;
       do {
@@ -170,38 +157,23 @@
       playTrack(randomIndex);
     }
 
-    // 點擊「單曲重複」開關
     function toggleRepeat() {
       isRepeat = !isRepeat;
-      if (isRepeat) {
-        btnRepeat.textContent = "🔂 單曲重複：開";
-        btnRepeat.classList.add("active");
-      } else {
-        btnRepeat.textContent = "🔂 單曲重複：關";
-        btnRepeat.classList.remove("active");
-      }
+      btnRepeat.textContent = isRepeat ? "🔂 單曲重複：開" : "🔂 單曲重複：關";
+      btnRepeat.classList.toggle("active", isRepeat);
     }
 
-    // 播完一首後的自動處理邏輯
     player.addEventListener("ended", () => {
       if (isRepeat) {
-        // 如果開啟單曲重複，重頭再播同一首
         player.currentTime = 0;
         player.play();
       } else if (isRandom) {
-        // 如果是隨機模式，繼續隨機抽下一首
         playNextRandom();
       } else {
-        // 如果是順序模式，接下一首，播完最後一首回到第一首
-        if (currentIndex + 1 < playlist.length) {
-          playTrack(currentIndex + 1);
-        } else {
-          playTrack(0);
-        }
+        playTrack((currentIndex + 1) % playlist.length);
       }
     });
   </script>
 
 </body>
 </html>
-
