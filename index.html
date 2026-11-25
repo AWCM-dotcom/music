@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>我的專屬音樂盒</title>
+  <title>我的專屬影音盒</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
@@ -14,27 +14,40 @@
       margin: 0;
     }
     h2 { font-size: 19px; margin-bottom: 18px; }
-    .controls { display: flex; justify-content: center; gap: 12px; margin-bottom: 20px; }
+    .controls { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
     .btn {
-      background-color: #1DB954;
+      background-color: #333333;
       color: white;
       border: none;
-      padding: 13px 24px;
-      font-size: 16px;
+      padding: 12px 18px;
+      font-size: 15px;
       font-weight: bold;
       border-radius: 50px;
       cursor: pointer;
     }
-    .btn-shuffle { background-color: #333333; }
+    .btn.active { background-color: #1DB954; color: #ffffff; }
     .btn:active { transform: scale(0.96); }
-    audio { width: 100%; max-width: 420px; margin-bottom: 20px; }
+    
+    /* 播放器樣式：播 MP3 時維持精簡高度，播 MP4 時自動展開畫面 */
+    video { 
+      width: 100%; 
+      max-width: 420px; 
+      margin-bottom: 20px; 
+      border-radius: 10px;
+      background-color: #000;
+      height: 54px; /* 預設高度（適合 MP3） */
+    }
+    video.is-video {
+      height: auto; /* 播 MP4 時自動顯示完整影片比例 */
+    }
+
     ul {
       list-style: none;
       padding: 0;
       max-width: 420px;
       margin: 0 auto;
       text-align: left;
-      max-height: 60vh;
+      max-height: 55vh;
       overflow-y: auto;
     }
     li {
@@ -49,49 +62,80 @@
 </head>
 <body>
 
-  <h2 id="nowPlaying">點擊按鈕開始播放音樂</h2>
+  <h2 id="nowPlaying">點擊按鈕開始播放</h2>
   
   <div class="controls">
-    <button class="btn" onclick="playTrack(0)">▶ 順序播放</button>
-    <button class="btn btn-shuffle" onclick="playRandom()">🔀 隨機播放</button>
+    <button id="btnOrder" class="btn active" onclick="startOrder()">▶ 順序播放</button>
+    <button id="btnRandom" class="btn" onclick="startRandom()">🔀 隨機播放</button>
+    <button id="btnRepeat" class="btn" onclick="toggleRepeat()">🔂 單曲重複：關</button>
   </div>
 
-  <audio id="audioPlayer" controls playsinline></audio>
+  <!-- 改用 video 標籤，同時支援 MP3 音樂與 MP4 影片 -->
+  <video id="mediaPlayer" controls playsinline></video>
   <ul id="songList"></ul>
 
   <script>
     // ==========================================
-    // 【唯一要改的地方】把 150 改成你倉庫裡的歌曲總數
-    // （程式會自動讀取同一個倉庫裡的 1.mp3 到 150.mp3）
+    // 【設定區】請修改這裡的數字
+    // 1. totalSongs：倉庫裡的 MP3 總數（會自動讀取 1.mp3 ~ 14.mp3）
+    // 2. totalVideos：倉庫裡的 MP4 總數（會自動讀取 1.mp4 ~ 1.mp4）
     // ==========================================
-    const totalSongs = 18; 
+    const totalSongs = 14;  // <-- 改成你的 MP3 數量（例如 14 或 18）
+    const totalVideos = 4;  // <-- 改成你的 MP4 數量（例如 1）
     // ==========================================
 
     const playlist = [];
+    
+    // 加入 MP3 歌曲
     for (let num = 1; num <= totalSongs; num++) {
       playlist.push({
-        name: `曲目 #${num}`,
-        file: `${num}.mp3`
+        name: `🎵 曲目 #${num}`,
+        file: `${num}.mp3`,
+        type: 'audio'
+      });
+    }
+
+    // 加入 MP4 影片
+    for (let num = 1; num <= totalVideos; num++) {
+      playlist.push({
+        name: `🎬 影片 #${num}`,
+        file: `${num}.mp4`,
+        type: 'video'
       });
     }
 
     let currentIndex = 0;
-    const player = document.getElementById("audioPlayer");
+    let isRandom = false; // 是否為隨機模式
+    let isRepeat = false; // 是否為單曲重複模式
+
+    const player = document.getElementById("mediaPlayer");
     const nowPlaying = document.getElementById("nowPlaying");
     const songList = document.getElementById("songList");
+    const btnOrder = document.getElementById("btnOrder");
+    const btnRandom = document.getElementById("btnRandom");
+    const btnRepeat = document.getElementById("btnRepeat");
 
     // 自動生成歌單列表
-    playlist.forEach((song, index) => {
+    playlist.forEach((item, index) => {
       const li = document.createElement("li");
-      li.textContent = song.name;
+      li.textContent = item.name;
       li.onclick = () => playTrack(index);
       songList.appendChild(li);
     });
 
     function playTrack(index) {
       currentIndex = index;
-      player.src = playlist[currentIndex].file;
-      nowPlaying.textContent = `正在播放：${playlist[currentIndex].name} (共 ${playlist.length} 首)`;
+      const currentItem = playlist[currentIndex];
+      
+      // 根據是 MP3 還是 MP4，自動切換播放器高度
+      if (currentItem.type === 'video') {
+        player.classList.add('is-video');
+      } else {
+        player.classList.remove('is-video');
+      }
+
+      player.src = currentItem.file;
+      nowPlaying.textContent = `正在播放：${currentItem.name} (共 ${playlist.length} 首)`;
       
       const items = songList.getElementsByTagName("li");
       for (let i = 0; i < items.length; i++) {
@@ -101,20 +145,63 @@
       player.play();
     }
 
-    function playRandom() {
-      const randomIndex = Math.floor(Math.random() * playlist.length);
+    // 點擊「順序播放」
+    function startOrder() {
+      isRandom = false;
+      btnOrder.classList.add("active");
+      btnRandom.classList.remove("active");
+      playTrack(0);
+    }
+
+    // 點擊「隨機播放」
+    function startRandom() {
+      isRandom = true;
+      btnRandom.classList.add("active");
+      btnOrder.classList.remove("active");
+      playNextRandom();
+    }
+
+    // 隨機挑選下一首（避免連續兩次播同一首）
+    function playNextRandom() {
+      let randomIndex;
+      do {
+        randomIndex = Math.floor(Math.random() * playlist.length);
+      } while (randomIndex === currentIndex && playlist.length > 1);
       playTrack(randomIndex);
     }
 
-    // 播完一首自動接下一首，全部播完自動從頭循環
-    player.addEventListener("ended", () => {
-      if (currentIndex + 1 < playlist.length) {
-        playTrack(currentIndex + 1);
+    // 點擊「單曲重複」開關
+    function toggleRepeat() {
+      isRepeat = !isRepeat;
+      if (isRepeat) {
+        btnRepeat.textContent = "🔂 單曲重複：開";
+        btnRepeat.classList.add("active");
       } else {
-        playTrack(0);
+        btnRepeat.textContent = "🔂 單曲重複：關";
+        btnRepeat.classList.remove("active");
+      }
+    }
+
+    // 播完一首後的自動處理邏輯
+    player.addEventListener("ended", () => {
+      if (isRepeat) {
+        // 如果開啟單曲重複，重頭再播同一首
+        player.currentTime = 0;
+        player.play();
+      } else if (isRandom) {
+        // 如果是隨機模式，繼續隨機抽下一首
+        playNextRandom();
+      } else {
+        // 如果是順序模式，接下一首，播完最後一首回到第一首
+        if (currentIndex + 1 < playlist.length) {
+          playTrack(currentIndex + 1);
+        } else {
+          playTrack(0);
+        }
       }
     });
   </script>
 
 </body>
 </html>
+
